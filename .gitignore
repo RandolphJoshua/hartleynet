@@ -23,3 +23,10 @@ env/
 # Local data / scratch
 *.log
 .cache/
+
+# Agent / tooling state
+.claude/
+
+# Reference material kept locally, not part of the demo
+hartleynet_arch/HartleySpectralPooling/
+hartleynet_arch/ipynb_files/

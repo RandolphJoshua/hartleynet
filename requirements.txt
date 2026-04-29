@@ -1,0 +1,9 @@
+# Pull CPU-only torch wheels so the app stays small enough for
+# Streamlit Community Cloud (no CUDA dependencies).
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+streamlit==1.41.1
+torch==2.5.1
+torchvision==0.20.1
+pillow==11.0.0
+numpy==2.0.2
