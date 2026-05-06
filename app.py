@@ -3,6 +3,8 @@ from io import BytesIO
 import streamlit as st
 from PIL import Image
 
+from model import predict
+
 st.set_page_config(
     page_title="HartleyNet - AI Image Detector",
     page_icon=None,
@@ -47,6 +49,9 @@ def main():
 
     image = Image.open(BytesIO(uploaded.getvalue())).convert("RGB")
     render_preview(image)
+
+    label, prob = predict(image)
+    st.write(label, prob)
 
 
 if __name__ == "__main__":

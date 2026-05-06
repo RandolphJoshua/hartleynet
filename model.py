@@ -1,19 +1,26 @@
-"""HartleyNet model loader.
+"""HartleyNet model loader and inference helper.
 
-Builds the model architecture via ``hartleynet_arch.hartleynet_builder``,
-loads the fine-tuned state_dict from ``models/hartleynet.pth``, and
-caches the result so Streamlit reuses one instance across reruns.
+``load_model`` builds the architecture via ``hartleynet_arch.hartleynet_builder``,
+loads the fine-tuned state_dict from ``models/hartleynet.pth``, and caches the
+result. ``predict`` runs a single image through the model and returns the
+predicted label plus the raw AI probability.
 """
 
 from pathlib import Path
 
 import streamlit as st
 import torch
+from PIL import Image
 
 from hartleynet_arch import hartleynet_builder
+from utils import preprocess_image
 
 
 WEIGHTS_PATH = Path(__file__).parent / "models" / "hartleynet.pth"
+
+LABEL_AI = "AI-generated"
+LABEL_REAL = "Real"
+DECISION_THRESHOLD = 0.5
 
 
 def _device() -> torch.device:
@@ -35,3 +42,17 @@ def load_model() -> torch.nn.Module:
     model.to(device)
     model.eval()
     return model
+
+
+def predict(image: Image.Image) -> tuple[str, float]:
+    """Run HartleyNet on a PIL image. Returns (label, prob_ai)."""
+    model = load_model()
+    device = _device()
+
+    tensor = preprocess_image(image).to(device)
+    with torch.no_grad():
+        logit = model(tensor).view(-1)
+        prob = torch.sigmoid(logit).item()
+
+    label = LABEL_AI if prob >= DECISION_THRESHOLD else LABEL_REAL
+    return label, prob
