@@ -38,6 +38,12 @@ def render_preview(image: Image.Image):
     st.image(image, width=PREVIEW_WIDTH, caption="Uploaded image")
 
 
+def render_result(label: str, prob: float):
+    st.subheader("The verdict")
+    st.markdown(f"**Classification:** {label}")
+    st.markdown(f"**Raw probability (AI):** `{prob:.4f}`")
+
+
 def main():
     render_header()
     st.divider()
@@ -51,7 +57,7 @@ def main():
     render_preview(image)
 
     label, prob = predict(image)
-    st.write(label, prob)
+    render_result(label, prob)
 
 
 if __name__ == "__main__":
