@@ -39,8 +39,11 @@ def render_preview(image: Image.Image):
 
 
 def render_result(label: str, prob: float):
+    confidence = prob if label == "AI-generated" else 1.0 - prob
+
     st.subheader("The verdict")
     st.markdown(f"**Classification:** {label}")
+    st.progress(confidence, text=f"Confidence: {confidence * 100:.1f}%")
     st.markdown(f"**Raw probability (AI):** `{prob:.4f}`")
 
 
