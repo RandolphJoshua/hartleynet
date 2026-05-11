@@ -6,6 +6,7 @@ result. ``predict`` runs a single image through the model and returns the
 predicted label plus the raw AI probability.
 """
 
+import time
 from pathlib import Path
 
 import streamlit as st
@@ -44,15 +45,21 @@ def load_model() -> torch.nn.Module:
     return model
 
 
-def predict(image: Image.Image) -> tuple[str, float]:
-    """Run HartleyNet on a PIL image. Returns (label, prob_ai)."""
+def predict(image: Image.Image) -> tuple[str, float, float]:
+    """Run HartleyNet on a PIL image.
+
+    Returns ``(label, prob_ai, inference_ms)`` where ``inference_ms``
+    is the wall-clock time spent inside the model forward pass.
+    """
     model = load_model()
     device = _device()
 
     tensor = preprocess_image(image).to(device)
+    start = time.perf_counter()
     with torch.no_grad():
         logit = model(tensor).view(-1)
         prob = torch.sigmoid(logit).item()
+    inference_ms = (time.perf_counter() - start) * 1000.0
 
     label = LABEL_AI if prob >= DECISION_THRESHOLD else LABEL_REAL
-    return label, prob
+    return label, prob, inference_ms
