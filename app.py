@@ -2,7 +2,7 @@ from datetime import datetime
 from io import BytesIO
 
 import streamlit as st
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from model import predict
 from utils import append_history, make_thumbnail
@@ -15,6 +15,7 @@ st.set_page_config(
 
 ACCEPTED_TYPES = ["jpg", "jpeg", "png", "webp"]
 PREVIEW_WIDTH = 400
+MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 MB
 
 
 def _ensure_session_state():
@@ -93,6 +94,46 @@ def _record_history(uploaded, image: Image.Image, label: str, prob: float):
     )
 
 
+def _load_image(uploaded) -> Image.Image | None:
+    raw = uploaded.getvalue()
+    if len(raw) > MAX_UPLOAD_BYTES:
+        limit_mb = MAX_UPLOAD_BYTES // (1024 * 1024)
+        st.error(
+            f"That image is {len(raw) / (1024 * 1024):.1f} MB - the demo "
+            f"caps uploads at {limit_mb} MB to keep things responsive. "
+            "Try a smaller version."
+        )
+        return None
+
+    try:
+        image = Image.open(BytesIO(raw))
+        image.load()
+        return image.convert("RGB")
+    except UnidentifiedImageError:
+        st.error(
+            "That file does not look like an image we can decode. "
+            f"Please upload a {', '.join(ACCEPTED_TYPES)} file."
+        )
+    except OSError as exc:
+        st.error(f"Could not read the image - the file may be truncated or corrupt. ({exc})")
+    return None
+
+
+def _run_inference(image: Image.Image):
+    try:
+        return predict(image)
+    except FileNotFoundError as exc:
+        st.error(
+            "HartleyNet weights are missing from this deployment. "
+            "Place hartleynet.pth under models/ and redeploy."
+        )
+        st.caption(str(exc))
+    except Exception as exc:
+        st.error("Something went wrong while running the model.")
+        st.caption(f"{type(exc).__name__}: {exc}")
+    return None
+
+
 def main():
     _ensure_session_state()
     render_header()
@@ -104,10 +145,17 @@ def main():
         st.caption("Supported formats: " + ", ".join(ACCEPTED_TYPES))
         return
 
-    image = Image.open(BytesIO(uploaded.getvalue())).convert("RGB")
+    image = _load_image(uploaded)
+    if image is None:
+        return
+
     render_preview(image)
 
-    label, prob, inference_ms = predict(image)
+    result = _run_inference(image)
+    if result is None:
+        return
+
+    label, prob, inference_ms = result
     render_result(label, prob, inference_ms)
     _record_history(uploaded, image, label, prob)
 
