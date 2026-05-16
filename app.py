@@ -141,16 +141,28 @@ code, kbd, samp, pre,
 
 /* file uploader ---------------------------------------------------------- */
 
-[data-testid="stFileUploaderDropzone"] {
+[data-testid="stFileUploaderDropzone"],
+[data-testid="stFileUploaderDropzone"]:hover,
+[data-testid="stFileUploaderDropzone"]:focus,
+[data-testid="stFileUploaderDropzone"]:focus-within {
     background: #FAF7F0 !important;
     border: 1px solid #111111 !important;
     border-radius: 0 !important;
     padding: 32px 24px !important;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    transition: border-color 0.15s ease;
 }
 [data-testid="stFileUploaderDropzone"]:hover {
     border-color: #862B30 !important;
-    background: #FAF7F0 !important;
+}
+
+/* let the dropzone background show through any inner wrappers Streamlit
+   injects (otherwise they pick up the peach secondaryBackgroundColor) */
+[data-testid="stFileUploaderDropzone"] > div,
+[data-testid="stFileUploaderDropzone"] > section,
+[data-testid="stFileUploaderDropzoneInstructions"],
+[data-testid="stFileUploaderDropzoneInstructions"] > div,
+[data-testid="stFileUploaderDropzoneInstructions"] > * {
+    background: transparent !important;
 }
 
 /* hide Streamlit's default cloud-upload icon (scoped to instructions
@@ -296,7 +308,7 @@ code, kbd, samp, pre,
     line-height: 1.05;
 }
 .hn-verdict-class.ai { color: #862B30; }
-.hn-verdict-class.real { color: #1E3A5F; }
+.hn-verdict-class.real { color: #2D5A3D; }
 
 .hn-verdict-meta {
     display: flex;
@@ -419,6 +431,7 @@ code, kbd, samp, pre,
     letter-spacing: 0.01em;
 }
 .hn-history-label.ai { color: #862B30; }
+.hn-history-label.real { color: #2D5A3D; }
 .hn-history-meta {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
