@@ -24,10 +24,13 @@ inference latency.
 
 ## Screenshots
 
-_Placeholder — drop screenshots in `docs/` and link them here once captured._
+The verdict card after analysing an uploaded image:
 
-- `docs/screenshot-verdict.png` — the result card after analysing a sample.
-- `docs/screenshot-history.png` — the sidebar ledger after a few uploads.
+![Verdict card](docs/screenshot-verdict.png)
+
+The sidebar ledger tracking the last few predictions of the session:
+
+![History sidebar](docs/screenshot-history.png)
 
 ## Run locally
 
