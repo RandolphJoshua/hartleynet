@@ -57,7 +57,7 @@ The `requirements.txt` pulls CPU-only PyTorch wheels via the
 available locally and want GPU inference, install `torch` /
 `torchvision` from the appropriate CUDA index instead. The app
 auto-detects CUDA and uses it when available.
-
+<!--
 ## Deploy on Streamlit Community Cloud
 
 1. Push this repository to GitHub (a public repo is fine; the model
@@ -73,7 +73,7 @@ auto-detects CUDA and uses it when available.
 
 The app uses the CPU torch wheels and stays within Community Cloud's
 free-tier memory budget.
-
+-->
 ## Project layout
 
 ```
