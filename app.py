@@ -5,7 +5,7 @@ from io import BytesIO
 import streamlit as st
 from PIL import Image, UnidentifiedImageError
 
-from model import predict
+from model import DEFAULT_MODEL, available_models, predict
 from utils import append_history, make_thumbnail
 
 st.set_page_config(
@@ -138,6 +138,35 @@ code, kbd, samp, pre,
     margin: 8px 0 8px 0;
     text-align: center;
 }
+
+/* model picker ----------------------------------------------------------- */
+
+.hn-model-picker {
+    margin-bottom: 18px;
+}
+.hn-model-picker [data-testid="stSelectbox"] label { display: none; }
+.hn-model-picker [data-baseweb="select"] > div {
+    background: #FAF7F0 !important;
+    border: 1px solid #111111 !important;
+    border-radius: 0 !important;
+    font-family: 'Newsreader', serif !important;
+    font-style: italic !important;
+    font-size: 15px !important;
+    color: #111111 !important;
+}
+.hn-model-picker [data-baseweb="select"] > div:hover {
+    border-color: #862B30 !important;
+}
+.hn-model-active {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #555555;
+    text-align: center;
+    margin: 6px 0 0 0;
+}
+.hn-model-active .name { color: #111111; }
 
 /* file uploader ---------------------------------------------------------- */
 
@@ -296,6 +325,17 @@ code, kbd, samp, pre,
     color: #555555;
     margin: 4px 0 6px 0;
 }
+
+.hn-verdict-attribution {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #862B30;
+    text-align: center;
+    margin: 0 0 10px 0;
+}
+.hn-verdict-attribution .name { color: #111111; }
 
 .hn-verdict-class {
     font-family: 'Playfair Display', serif;
@@ -494,6 +534,11 @@ def _ensure_session_state():
         st.session_state.last_file_id = None
     if "issue_no" not in st.session_state:
         st.session_state.issue_no = datetime.now().strftime("%j")
+    if "selected_model" not in st.session_state:
+        models = available_models()
+        st.session_state.selected_model = (
+            DEFAULT_MODEL if DEFAULT_MODEL in models else (next(iter(models), DEFAULT_MODEL))
+        )
 
 
 # --- Rendering --------------------------------------------------------------
@@ -515,6 +560,44 @@ def render_masthead():
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_model_picker():
+    models = available_models()
+    names = list(models.keys())
+
+    if not names:
+        return None
+
+    if len(names) == 1:
+        only = names[0]
+        st.session_state.selected_model = only
+        st.markdown(
+            f"<div class='hn-model-active'>Edition &middot; "
+            f"<span class='name'>{only}</span></div>",
+            unsafe_allow_html=True,
+        )
+        return only
+
+    current = st.session_state.selected_model
+    if current not in models:
+        current = DEFAULT_MODEL if DEFAULT_MODEL in models else names[0]
+        st.session_state.selected_model = current
+
+    st.markdown(
+        "<div class='hn-directive'>— Choose an edition —</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div class='hn-model-picker'>", unsafe_allow_html=True)
+    selected = st.selectbox(
+        "Model",
+        names,
+        index=names.index(current),
+        key="selected_model",
+        label_visibility="collapsed",
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+    return selected
 
 
 def render_uploader_section():
@@ -546,7 +629,7 @@ def render_preview(image: Image.Image):
         st.image(image, width=PREVIEW_WIDTH, caption="SPECIMEN")
 
 
-def render_verdict(label: str, prob: float, inference_ms: float):
+def render_verdict(label: str, prob: float, inference_ms: float, model_name: str):
     is_ai = label == LABEL_AI
     confidence = prob if is_ai else 1.0 - prob
     label_class = "ai" if is_ai else "real"
@@ -557,6 +640,7 @@ def render_verdict(label: str, prob: float, inference_ms: float):
         <div class="hn-verdict">
             <p class="hn-verdict-prelude">The image is determined to be</p>
             <div class="hn-verdict-class {label_class}">{spaced_label}</div>
+            <p class="hn-verdict-attribution">By &middot; <span class="name">{model_name}</span></p>
             <div class="hn-verdict-meta">
                 <span>
                     <span class="label">p (AI)</span>
@@ -595,12 +679,16 @@ def render_history_sidebar():
         rows = []
         for entry in reversed(history):
             label_class = "ai" if entry["label"] == LABEL_AI else "real"
+            model_name = entry.get("model", "")
+            meta = f"{entry['confidence'] * 100:.1f}% &middot; {entry['timestamp']}"
+            if model_name:
+                meta += f" &middot; {model_name}"
             rows.append(
                 f"""<div class="hn-history-row">
                     <img class="hn-history-thumb" src="{_thumbnail_data_uri(entry['thumbnail'])}" />
                     <div class="hn-history-info">
                         <div class="hn-history-label {label_class}">{entry['label']}</div>
-                        <div class="hn-history-meta">{entry['confidence'] * 100:.1f}% &middot; {entry['timestamp']}</div>
+                        <div class="hn-history-meta">{meta}</div>
                     </div>
                 </div>"""
             )
@@ -624,10 +712,11 @@ def render_footer():
 # --- Pipeline ---------------------------------------------------------------
 
 
-def _record_history(uploaded, image: Image.Image, label: str, prob: float):
-    if st.session_state.last_file_id == uploaded.file_id:
+def _record_history(uploaded, image: Image.Image, label: str, prob: float, model_name: str):
+    entry_key = (uploaded.file_id, model_name)
+    if st.session_state.last_file_id == entry_key:
         return
-    st.session_state.last_file_id = uploaded.file_id
+    st.session_state.last_file_id = entry_key
 
     confidence = prob if label == LABEL_AI else 1.0 - prob
     append_history(
@@ -637,6 +726,7 @@ def _record_history(uploaded, image: Image.Image, label: str, prob: float):
             "label": label,
             "confidence": confidence,
             "timestamp": datetime.now().strftime("%H:%M:%S"),
+            "model": model_name,
         },
     )
 
@@ -666,17 +756,17 @@ def _load_image(uploaded) -> Image.Image | None:
     return None
 
 
-def _run_inference(image: Image.Image):
+def _run_inference(image: Image.Image, model_key: str):
     try:
-        return predict(image)
+        return predict(image, model_key)
     except FileNotFoundError as exc:
         st.error(
-            "HartleyNet weights are missing from this deployment. "
-            "Place hartleynet.pth under models/ and redeploy."
+            f"Weights for '{model_key}' are missing from this deployment. "
+            "Place the corresponding .pth file under models/ and redeploy."
         )
         st.caption(str(exc))
     except Exception as exc:
-        st.error("Something went wrong while running the model.")
+        st.error(f"Something went wrong while running '{model_key}'.")
         st.caption(f"{type(exc).__name__}: {exc}")
     return None
 
@@ -686,6 +776,15 @@ def main():
     _ensure_session_state()
     render_masthead()
     render_history_sidebar()
+
+    model_key = render_model_picker()
+    if model_key is None:
+        st.error(
+            "No HartleyNet weights are available. "
+            "Place at least one .pth file under models/ and redeploy."
+        )
+        render_footer()
+        return
 
     uploaded = render_uploader_section()
     if uploaded is None:
@@ -699,14 +798,14 @@ def main():
 
     render_preview(image)
 
-    result = _run_inference(image)
+    result = _run_inference(image, model_key)
     if result is None:
         render_footer()
         return
 
     label, prob, inference_ms = result
-    render_verdict(label, prob, inference_ms)
-    _record_history(uploaded, image, label, prob)
+    render_verdict(label, prob, inference_ms, model_key)
+    _record_history(uploaded, image, label, prob, model_key)
     render_footer()
 
 
