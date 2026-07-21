@@ -1,4 +1,4 @@
-# HartleyNet — AI Image Detector
+# HartleyNet: AI Image Detector
 
 A Streamlit demo that wraps **HartleyNet**, the spectral-pooling image
 forensics model from our undergraduate thesis. Drop in a face photo and
